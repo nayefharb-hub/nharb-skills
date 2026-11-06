@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# nharb-upgrade <X.Y.Z> [project-dir]: install release vX.Y.Z and record it as the project's pin.
+#
+# Installs with nharb-install, then writes X.Y.Z to <project-dir>/.claude/nharb-version when
+# that file exists (the project pins its nharb version). Commits nothing: the caller commits
+# the pin file under the project's own rules.
+set -uo pipefail
+
+V="${1:-}"
+PROJECT="${2:-${CLAUDE_PROJECT_DIR:-$PWD}}"
+BIN="$(cd "$(dirname "$0")" && pwd)"
+
+"$BIN/nharb-install" "$V" || exit $?
+
+PIN="$PROJECT/.claude/nharb-version"
+if [ -f "$PIN" ]; then
+  old="$(tr -d '[:space:]' < "$PIN")"
+  if [ "$old" != "$V" ]; then
+    printf '%s\n' "$V" > "$PIN"
+    echo "nharb: pin $PIN changed $old -> $V (commit it)"
+  else
+    echo "nharb: pin $PIN already $V"
+  fi
+else
+  echo "nharb: $PROJECT has no .claude/nharb-version; nothing pinned"
+fi
