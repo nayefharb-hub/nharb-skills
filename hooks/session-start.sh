@@ -13,8 +13,8 @@
 set -uo pipefail
 
 PIN_FILE="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/nharb-version"
-DIR="$HOME/.claude/skills/nharb"
-REMOTE="https://github.com/nayefharb-hub/nharb-skills"
+DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
+REMOTE="${NHARB_REMOTE:-https://github.com/nayefharb-hub/nharb-skills}"
 
 if [ ! -f "$PIN_FILE" ]; then
   echo "nharb: no .claude/nharb-version in this project; skills not installed"
