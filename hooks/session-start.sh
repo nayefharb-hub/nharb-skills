@@ -16,21 +16,21 @@ PIN_FILE="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/nharb-version"
 DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
 REMOTE="${NHARB_REMOTE:-https://github.com/nayefharb-hub/nharb-skills}"
 
-if [ ! -f "$PIN_FILE" ]; then
+if [[ ! -f "$PIN_FILE" ]]; then
   echo "nharb: no .claude/nharb-version in this project; skills not installed"
   exit 0
 fi
 V="$(tr -d '[:space:]' < "$PIN_FILE")"
 
 # Installed already: let the installed copy's own installer do the work.
-if [ -x "$DIR/bin/nharb-install" ]; then
+if [[ -x "$DIR/bin/nharb-install" ]]; then
   "$DIR/bin/nharb-install" "$V" || true
   exit 0
 fi
 
 # First install: clone only the pinned release.
 command -v git >/dev/null 2>&1 || { echo "nharb: git not found; skills not installed"; exit 0; }
-if [ -e "$DIR" ]; then
+if [[ -e "$DIR" ]]; then
   echo "nharb: $DIR exists but is not an nharb install; leaving it alone"
   exit 0
 fi

@@ -1,6 +1,13 @@
 # Changelog
 
 One section per release, newest first. A release is the tag `vX.Y.Z` on `main`.
+Each heading is exactly `## X.Y.Z — YYYY-MM-DD`: the upgrade prompt reads these headings.
+
+## 1.0.1 — 2026-11-06
+
+- **Project hook (`hooks/session-start.sh`):** `[[ ]]` tests instead of `[ ]` (SonarCloud S7688).
+  Behaviour unchanged; projects that copied the hook can re-copy it.
+- **Changelog:** states the heading format the upgrade prompt reads.
 
 ## 1.0.0 — 2026-11-06
 
