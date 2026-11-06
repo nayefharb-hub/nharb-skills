@@ -1,46 +1,77 @@
 #!/bin/bash
-# nharb skills: install the version this project pins, at session start.
+# Pinned skills: install the skill sources this project pins, at session start.
 #
-# Copy this file into a project as .claude/hooks/nharb-skills.sh, register it as a
-# SessionStart hook in the project's .claude/settings.json, and commit the pin file
-# .claude/nharb-version holding a release, e.g. 1.0.0.
+# /nharb:install copies this file into a project as .claude/hooks/pinned-skills.sh and
+# registers it as a SessionStart hook. It reads .claude/skills/pinned-versions, one line per
+# skill source:
 #
-# - The installed copy (~/.claude/skills/nharb) already matches the pin: does nothing.
-# - It doesn't (a first session, or a cloud container from an older snapshot): installs
-#   exactly the pinned release. Never the latest: upgrades happen only when a skill asks
-#   and the user says yes, which also changes the pin.
-# - Anything fails: says so and exits 0, so the session always starts.
+#   <name> <version> <repository>      e.g.  nharb 1.1.0 https://github.com/nayefharb-hub/nharb-skills
+#
+# For each source, ~/.claude/skills/<name> is a git clone checked out at the tag v<version>:
+# - It is already that release: nothing happens.
+# - It is not (a first session, or a cloud container from an older snapshot): exactly the
+#   pinned release is installed. Never a newer one: a skill asks before upgrading, and an
+#   upgrade rewrites the line.
+# - Anything fails: it says so and exits 0, so the session always starts.
 set -uo pipefail
 
-PIN_FILE="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/nharb-version"
-DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
-REMOTE="${NHARB_REMOTE:-https://github.com/nayefharb-hub/nharb-skills}"
+PIN_FILE="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/skills/pinned-versions"
+ROOT="${PINNED_SKILLS_ROOT:-$HOME/.claude/skills}"
+
+install_one() {
+  local name="$1" version="$2" repo="$3"
+  local dir="$ROOT/$name" current tmp
+  current="$(tr -d '[:space:]' 2>/dev/null < "$dir/VERSION" || true)"
+
+  if [[ "$current" == "$version" ]]; then
+    echo "$name: $version installed"
+    return 0
+  fi
+
+  if [[ -d "$dir/.git" ]]; then
+    if git -C "$dir" fetch -q --depth 1 origin tag "v$version" 2>/dev/null \
+       && git -C "$dir" -c advice.detachedHead=false checkout -q "v$version" 2>/dev/null; then
+      echo "$name: installed $version (was ${current:-none})"
+      return 0
+    fi
+  elif [[ -e "$dir" ]]; then
+    echo "$name: $dir exists but is not a git clone; leaving it alone"
+    return 0
+  else
+    mkdir -p "$ROOT"
+    tmp="$dir.tmp.$$"
+    if git -c advice.detachedHead=false clone -q --depth 1 --branch "v$version" "$repo" "$tmp" 2>/dev/null; then
+      mv "$tmp" "$dir"
+      echo "$name: installed $version"
+      return 0
+    fi
+    rm -rf "$tmp"
+  fi
+
+  if [[ -n "$current" ]]; then
+    echo "$name: v$version could not be fetched from $repo; still using installed $current. Check .claude/skills/pinned-versions."
+  else
+    echo "$name: v$version could not be fetched from $repo; its skills are unavailable this session. Check .claude/skills/pinned-versions."
+  fi
+}
 
 if [[ ! -f "$PIN_FILE" ]]; then
-  echo "nharb: no .claude/nharb-version in this project; skills not installed"
+  echo "pinned skills: no .claude/skills/pinned-versions in this project; nothing installed"
   exit 0
 fi
-V="$(tr -d '[:space:]' < "$PIN_FILE")"
-
-# Installed already: let the installed copy's own installer do the work.
-if [[ -x "$DIR/bin/nharb-install" ]]; then
-  "$DIR/bin/nharb-install" "$V" || true
+if ! command -v git >/dev/null 2>&1; then
+  echo "pinned skills: git not found; nothing installed"
   exit 0
 fi
 
-# First install: clone only the pinned release.
-command -v git >/dev/null 2>&1 || { echo "nharb: git not found; skills not installed"; exit 0; }
-if [[ -e "$DIR" ]]; then
-  echo "nharb: $DIR exists but is not an nharb install; leaving it alone"
-  exit 0
-fi
-mkdir -p "$(dirname "$DIR")"
-tmp="$DIR.tmp.$$"
-if git -c advice.detachedHead=false clone -q --depth 1 --branch "v$V" "$REMOTE" "$tmp" 2>/dev/null; then
-  mv "$tmp" "$DIR"
-  echo "nharb: installed $V"
-else
-  rm -rf "$tmp"
-  echo "nharb: v$V could not be fetched from $REMOTE; the nharb skills are unavailable this session. Check .claude/nharb-version."
-fi
+while read -r name version repo _; do
+  [[ -z "${name:-}" || "$name" == \#* ]] && continue
+  # The name becomes a folder under ~/.claude/skills and the version a tag: accept only safe forms.
+  if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ || ! "${version:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ \
+        || ! "${repo:-}" =~ ^(https://|/) ]]; then
+    echo "pinned skills: skipping malformed line: $name ${version:-} ${repo:-}"
+    continue
+  fi
+  install_one "$name" "$version" "$repo"
+done < "$PIN_FILE"
 exit 0
