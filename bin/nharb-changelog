@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# nharb-changelog <installed> <latest>: print the CHANGELOG sections of every release newer than
+# <installed>, up to and including <latest>, read from release vX.Y.Z (<latest>) on GitHub.
+#
+# Fetches only that tag into the installed clone; the checked-out files do not change.
+set -uo pipefail
+
+FROM="${1:-}"
+TO="${2:-}"
+DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
+
+if ! git -C "$DIR" fetch -q --depth 1 origin tag "v$TO" 2>/dev/null; then
+  echo "(the changelog of v$TO could not be fetched)"
+  exit 0
+fi
+
+# Sections start with "## X.Y.Z"; print from "## TO" until the section of FROM.
+git -C "$DIR" show "v$TO:CHANGELOG.md" 2>/dev/null | awk -v from="$FROM" -v to="$TO" '
+  /^## [0-9]+\.[0-9]+\.[0-9]+/ {
+    v = $2
+    if (v == to) on = 1
+    if (v == from) on = 0
+  }
+  on { print }
+'

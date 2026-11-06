@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# nharb-install <X.Y.Z>: make the installed nharb skills exactly release vX.Y.Z.
+#
+# - Already that version: prints "nharb: X.Y.Z installed" and does nothing.
+# - Otherwise fetches only that release tag and checks it out (first time: clones it).
+# - The release cannot be fetched: keeps whatever is installed, says so, exits 1.
+#
+# The installed copy is a git clone at ~/.claude/skills/nharb, checked out at a tag.
+set -uo pipefail
+
+V="${1:-}"
+DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
+REMOTE="${NHARB_REMOTE:-https://github.com/nayefharb-hub/nharb-skills}"
+
+if ! printf '%s' "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "nharb: '$V' is not a version X.Y.Z" >&2
+  exit 2
+fi
+
+current="$(tr -d '[:space:]' < "$DIR/VERSION" 2>/dev/null || true)"
+if [ "$current" = "$V" ]; then
+  echo "nharb: $V installed"
+  exit 0
+fi
+
+fail() {
+  if [ -n "$current" ]; then
+    echo "nharb: v$V could not be fetched from $REMOTE; still using installed $current. Check the project's .claude/nharb-version."
+  else
+    echo "nharb: v$V could not be fetched from $REMOTE; the nharb skills are unavailable this session. Check the project's .claude/nharb-version."
+  fi
+  exit 1
+}
+
+if [ -d "$DIR/.git" ]; then
+  git -C "$DIR" fetch -q --depth 1 origin tag "v$V" 2>/dev/null || fail
+  git -C "$DIR" -c advice.detachedHead=false checkout -q "v$V" 2>/dev/null || fail
+elif [ -e "$DIR" ]; then
+  echo "nharb: $DIR exists but is not an nharb clone; leaving it alone." >&2
+  exit 1
+else
+  mkdir -p "$(dirname "$DIR")"
+  tmp="$DIR.tmp.$$"
+  git -c advice.detachedHead=false clone -q --depth 1 --branch "v$V" "$REMOTE" "$tmp" 2>/dev/null \
+    || { rm -rf "$tmp"; fail; }
+  mv "$tmp" "$DIR"
+fi
+
+echo "nharb: installed $V (was ${current:-none})"

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# nharb-update-check: compare the installed nharb version with the latest release on GitHub.
+#
+# Prints exactly one line:
+#   UP_TO_DATE <installed>
+#   UPGRADE_AVAILABLE <installed> <latest>
+#   CHECK_FAILED <reason>
+#
+# A release is a tag vX.Y.Z on the skills repository. The latest release is read with
+# `git ls-remote`, so nothing is downloaded and nothing on disk changes.
+set -uo pipefail
+
+DIR="${NHARB_DIR:-$HOME/.claude/skills/nharb}"
+REMOTE="${NHARB_REMOTE:-https://github.com/nayefharb-hub/nharb-skills}"
+
+installed="$(tr -d '[:space:]' < "$DIR/VERSION" 2>/dev/null || true)"
+if [ -z "$installed" ]; then
+  echo "CHECK_FAILED no VERSION file in $DIR"
+  exit 0
+fi
+
+if ! tags="$(git ls-remote --tags --refs "$REMOTE" 'v*' 2>/dev/null)"; then
+  echo "CHECK_FAILED cannot reach $REMOTE"
+  exit 0
+fi
+
+latest="$(printf '%s\n' "$tags" \
+  | sed -n 's#.*refs/tags/v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$#\1#p' \
+  | sort -V | tail -1)"
+if [ -z "$latest" ]; then
+  echo "CHECK_FAILED no release tag vX.Y.Z on $REMOTE"
+  exit 0
+fi
+
+# Newer than installed only when sort -V puts latest last and the two differ.
+highest="$(printf '%s\n%s\n' "$installed" "$latest" | sort -V | tail -1)"
+if [ "$latest" != "$installed" ] && [ "$highest" = "$latest" ]; then
+  echo "UPGRADE_AVAILABLE $installed $latest"
+else
+  echo "UP_TO_DATE $installed"
+fi
