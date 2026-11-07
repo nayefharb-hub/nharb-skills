@@ -3,6 +3,18 @@
 One section per release, newest first. A release is the tag `vX.Y.Z` on `main`.
 Each heading is exactly `## X.Y.Z — YYYY-MM-DD`: the upgrade prompt reads these headings.
 
+## 1.2.0 — 2026-11-07
+
+- **New skill `/nharb:full-replay`.** A full-replay sweep: after the user's yes, on a separate
+  worktree of the default branch, it checks the suite is green, re-runs every recorded mutation
+  proof, retries each claim that is not OK once, and reports every verdict, the silent checks
+  (most important first), the flukes, and the checks with no replayable proof. Only after its own
+  report is complete does it compare with the most recent earlier sweep report. It proposes one
+  ticket per gate, after searching for existing ones, and files them only on the user's confirmation.
+  It never fixes anything, never runs on CI or a schedule, and never blocks a merge or a release.
+  It names no project's commands: it reads them, and where reports are kept, from the project's own
+  instructions, and stops when the project names no replay command.
+
 ## 1.1.0 — 2026-11-06
 
 - **New skill `/nharb:install`.** Pins a skill source in a project: a line in
