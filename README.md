@@ -6,6 +6,7 @@ Nayef Harb's skills for Claude Code. Each one loads as `/nharb:<skill>`.
 |---|---|
 | `/nharb:handoff` | Writes the end-of-session handoff. `relay` (the default) keeps one standing file per project; `shotgun` writes a one-off prompt to paste into a new session. |
 | `/nharb:install` | Pins a skill source in a project (by default this one), so every session installs it at a fixed release. |
+| `/nharb:full-replay` | Runs a full-replay sweep: re-runs every recorded mutation proof of the project's tests, reports the checks that went silent, and proposes tickets. Reads the commands from the project's own instructions. |
 
 ## How the `nharb:` prefix works
 
